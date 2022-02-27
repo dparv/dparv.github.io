@@ -1,0 +1,109 @@
+---
+title: Pellets container monitoring
+subtitle: "or: how I leared to process images with python"
+layout: post
+tags: ["programming", "python", "smart home"]
+---
+
+The problem:
+My house is heated by burning pellets and the burner is located in my basement. It has a container that takes roughly about 150kg (10 bags) of pellets, but depending on the outside temperature they are burned in an irregular rate, so I have to get out of the house, go down the stairs and check how full the container is, then decide if I have to fill it in with more or I can wait more.
+
+And because I love automating things, I started wondering how to automate this, because I already have a check that uses [Pushover][pushover]{:target="_blank"} to send notification when the burner is on or off.
+
+### What do I need?
+
+I need to see it, right? Sure. I was anyways going to purchase some cameras for outside monitoring from [Reolink][reolink]{:target="_blank"}, which actually proved to be very good, I got also a E1 Pro. I installed this right above the container with the pellets, so now I could see what's goind on...
+
+### The camera
+{:refdef: style="text-align: center;"}
+![Cam1](/assets/images/pellets/cam1.jpg)
+
+![Cam2](/assets/images/pellets/cam2.jpg)
+{:refdef}
+
+### What it sees
+
+Good thing is it has infra red for night vision, as the garage is usually dark:
+
+![Pellets](/assets/images/pellets/pellets-low.jpg)
+
+### Solution 1: QR codes
+
+I tought the "easiest" way would be to... place a QR code (or codes) on different levels inside the container, so when they 'appear' I will scan the image and parse it.
+
+I started playing around with `qrtools` for reading and `pyqrcode` for generation.. and hold up - I need to go print it out, then figure out how to stick it in side the container, and if it falls down it will jam the pellets, nope, that's too much work. I need something simpler.
+
+### Solution 2: Image parsing
+
+Now that I have an image of the camera, need to first save it somewhere for parsing, the camera has RTSP stream, so easiest thing to do was:
+
+```bash
+#!/usr/bin/env bash
+ffmpeg -y -loglevel fatal -i rtsp://admin:password@CameraPellets.lan -vframes 1 -r 1 /srv/smart/pellets.jpg
+```
+
+Put that into cron every 15 minutes and we are done.
+
+Next: need to parse the image somehow.
+
+What I found interesting is, that where there are not pellets, the color of the container is darker, and the pellets actually reflect more infrared light, so they are brighter, idea popped up right in my head:
+
+{:refdef: style="text-align: center;"}
+![Pellets-Diag](/assets/images/pellets/pellets-low-diag.jpg)
+{:refdef}
+
+I can read the specific colors in the image and see when they 'switch' to a brigher color. (x,y)(0,0) are the coordinates top left. So I chose a random point of (x,y)(1300,135) and tried it out. Looked like the darker corners have colors with `#{2:3}XXXXX`, and the ligher - way higher with `#{4:7}XXXXX}`
+
+Because of the perspective, about 800 is the lower edge of the container (meaning dark color there equals empty), so that's the end I've selected.
+
+Now some code (using `Pillow` library for the image processing):
+
+```python
+#!/usr/bin/env python3
+from PIL import Image
+
+img = Image.open('/srv/smart/pellets.jpg')
+
+IMG_START = 135
+IMG_END = 800
+COEFFICIENT = ((IMG_END-IMG_START)/100)
+
+def check_pellets():
+    switched = False
+    has_pellets = False
+    full_up_to = 0    
+    for i in range(IMG_START-1,IMG_END+1):
+        color = img.getpixel((1300,i))
+        r = color[0]
+        g = color[1]
+        b = color[2]
+        hex_value = "{:02x}{:02x}{:02x}".format(r,g,b)
+        percent = (i-IMG_START)/COEFFICIENT
+        percent = round(percent)
+        first_val = int(hex_value[0])
+        if not switched:
+            if first_val >= 4:
+                has_pellets = True
+                switched = True
+                full_up_to = 100 - percent
+            else:
+                has_pellets = False
+
+    return '{}% full'.format(full_up_to)
+
+if __name__ == '__main__':
+    print(check_pellets())
+```
+
+Then I imported this snippet in my script that handled the ON/OFF pushover notifications (a Raspbery PI 4 that handles a lot of automations) and used it there, the result:
+
+### Success
+
+{:refdef: style="text-align: center;"}
+![Pushover-Notifications](/assets/images/pellets/pushover-notifications.jpg)
+{:refdef}
+
+P.S. And I just reallized I have to swap the title and text for the notifications as this is just wrong. Done!
+
+[pushover]: https://pushover.net/
+[reolink]: https://reolink.com/

@@ -1,0 +1,7 @@
+_site
+.sass-cache
+.jekyll-cache
+.jekyll-metadata
+vendor
+publish_dparv.dev.sh
+preview.sh
