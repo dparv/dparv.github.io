@@ -25,8 +25,8 @@ description: >- # this means to ignore newlines until "baseurl:"
   possible, as I am the lazier person you will ever meet. But still some
   good ideas might come out of it.
 
-baseurl: "/blog" # the subpath of your site, e.g. /blog
-relative_url: "blog"
+baseurl: "" # the subpath of your site, e.g. /blog
+relative_url: ""
 url: "https://dparv.dev" # the base hostname & protocol for your site, e.g. http://example.com
 facebook_username: diko.parvanov
 linkedin_username: dparv
