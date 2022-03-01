@@ -65,6 +65,8 @@ plugins:
   - jekyll-paginate-v2
   - jekyll-sitemap
 
+highlighter: none
+
 round-avatar: true
 
 post_search: true
