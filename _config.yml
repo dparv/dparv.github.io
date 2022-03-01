@@ -65,6 +65,25 @@ plugins:
   - jekyll-paginate-v2
   - jekyll-sitemap
 
+round-avatar: true
+
+post_search: true
+
+navbar-col: "#242728"
+navbar-text-col: "#c0bab2"
+navbar-border-col: "#3a3e41"
+page-col: "#181a1b"
+text-col: "#c0bab2"
+link-col: "#be873e"
+hover-col: "#506681"
+footer-col: "#242728"
+text-col: "#c0bab2"
+footer-link-col: "#506681"
+footer-hover-col: "#506681"
+
+site-css:
+  - "/assets/css/custom-styles.css"
+
 pagination:
   enabled: true
   per_page: 3
