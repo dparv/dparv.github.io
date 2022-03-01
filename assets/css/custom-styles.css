@@ -1,6 +1,10 @@
 .page-heading h1{
-    font-size: 3rem !important;
+    font-size: 2rem !important;
+    padding-top: 1rem !important;
 }
 .highlight{
 	color: #ffffff;
+}
+.avatar-container{
+	margin-top:  5rem !important;
 }
