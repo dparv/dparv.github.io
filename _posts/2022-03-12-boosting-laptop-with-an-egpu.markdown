@@ -96,8 +96,91 @@ EndSection
 
 ```
 
-Then just swapping both files and doing ```sudo service gdm3 restart``` did the job to switch back to the internal graphics card, however trying to switch back to the nvidia proved to be impossible, even disconncting and reconnecting the dock - didn't help. I had to reboot. Still looking for a solution and will update the article when I find it.
+Then just swapping both files and doing ```sudo service gdm3 restart``` did the job to switch back to the internal graphics card, however trying to switch back to the nvidia proved to be impossible, even disconncting and reconnecting the dock - didn't help. I had to reboot. That wasn't going to stand, so I started playing with the xorg, nvidia drivers and whatnot.
 
+I found this in syslog when restrting gdm3:
+
+```
+Mar 13 09:33:10 X1C /usr/lib/gdm3/gdm-x-session[316231]: (II) LoadModule: "nvidia"
+Mar 13 09:33:10 X1C /usr/lib/gdm3/gdm-x-session[316231]: (WW) Warning, couldn't open module nvidia
+Mar 13 09:33:10 X1C /usr/lib/gdm3/gdm-x-session[316231]: (EE) Failed to load module "nvidia" (module does not exist, 0)
+
+```
+
+howerver ```modprobe nvidia``` worked just fine... so what was the issue?
+
+I tried to remove the nvidia driver and reload it but..
+
+```
+$ rmmod nvidia
+rmmod: ERROR: Module nvidia is in use by: nvidia_uvm nvidia_modeset
+```
+
+Removing ```nvidia_modeset``` was also not working because of dependancies of ```nvidia_drm``` - so it was clear I had to reload **all** nvidia drivers, I build those 2 bash scripts:
+
+Assuming you are docking your laptop as you were working on it, first connect all thunderbold 3 cables to both docks, then switching to egpu:
+```
+# ./egpu.sh
+sudo rm /etc/X11/xorg.conf
+sudo ln -s /etc/X11/xorg.conf.egpu /etc/X11/xorg.conf
+echo "1" | sudo tee /sys/bus/pci/rescan
+sleep 2
+sudo rmmod nvidia_uvm
+sudo rmmod nvidia_modeset
+sudo rmmod nvidia_drm
+sudo rmmod nvidia
+sudo modprobe nvidia
+sudo modprobe nvidia_uvm
+sudo modprobe nvidia_modeset
+sudo modprobe nvidia_drm
+sudo service gdm3 restart
+```
+
+switching to internal gpu:
+```
+# ./internal.sh
+sudo rm /etc/X11/xorg.conf
+sudo ln -s /etc/X11/xorg.conf.internal /etc/X11/xorg.conf
+sudo service gdm3 restart
+```
+
+And in case you want to disconnect all thunderbold docks:
+
+```
+# to identify the thunderbolt controller:
+$ lspci -vt
+...
+ -[0000:00]-+-00.0  Intel Corporation Xeon E3-1200 v6/7th Gen Core Processor Host Bridge/DRAM Registers
+           +-02.0  Intel Corporation UHD Graphics 620
+           +-04.0  Intel Corporation Xeon E3-1200 v5/E3-1500 v5/6th Gen Core Processor Thermal Subsystem
+           +-08.0  Intel Corporation Xeon E3-1200 v5/v6 / E3-1500 v5 / 6th/7th/8th Gen Core Processor Gaussian Mixture Model
+           +-14.0  Intel Corporation Sunrise Point-LP USB 3.0 xHCI Controller
+           +-14.2  Intel Corporation Sunrise Point-LP Thermal subsystem
+           +-15.0  Intel Corporation Sunrise Point-LP Serial IO I2C Controller #0
+           +-16.0  Intel Corporation Sunrise Point-LP CSME HECI #1
+           +-1c.0-[02]----00.0  Intel Corporation Wireless 8265 / 8275
+           +-1c.4-[04]----00.0  Intel Corporation SSD Pro 7600p/760p/E 6100p Series
+           +-1d.0-[05-6f]----00.0-[06-6f]--+-00.0-[07]----00.0  Intel Corporation JHL6540 Thunderbolt 3 NHI (C step) [Alpine Ridge 4C 2016]
+           |                               +-01.0-[08-3a]----00.0-[09-3a]--+-01.0-[0a]--+-00.0  NVIDIA Corporation GA104 [GeForce RTX 3060]
+           |                               |                               |            \-00.1  NVIDIA Corporation GA104 High Definition Audio Controller
+           |                               |                               \-04.0-[0b-3a]----00.0-[0c-3a]--+-00.0-[0d]----00.0  Fresco Logic FL1100 USB 3.0 Host Controller
+           |                               |                                                               +-01.0-[0e]----00.0  Fresco Logic FL1100 USB 3.0 Host Controller
+           |                               |                                                               \-02.0-[0f]----00.0  Intel Corporation JHL6240 Thunderbolt 3 USB 3.1 Controller (Low Power) [Alpine Ridge LP 2016]
+           |                               +-02.0-[3b]--
+           |                               \-04.0-[3c-6f]----00.0-[3d-6f]--+-02.0-[3e]----00.0  Intel Corporation JHL7540 Thunderbolt 3 USB Controller [Titan Ridge DD 2018]
+           |                                                               \-04.0-[3f-6f]--
+           +-1f.0  Intel Corporation Sunrise Point LPC Controller/eSPI Controller
+           +-1f.2  Intel Corporation Sunrise Point-LP PMC
+           +-1f.3  Intel Corporation Sunrise Point-LP HD Audio
+           +-1f.4  Intel Corporation Sunrise Point-LP SMBus
+           \-1f.6  Intel Corporation Ethernet Connection (4) I219-V
+...
+
+# disconnect it
+$ echo 1 | sudo tee /sys/devices/pci0000:00/0000:00:1d.0/remove
+```
+
+Now I can switch between the two without reboots!
 
 [dock]: https://www.lenovo.com/us/en/p/accessories-and-software/docking/docking_thunderbolt-docks-(universal-cable-docks)/40an0135us
 [x1c]: https://www.lenovo.com/bg/bg/laptops/thinkpad/thinkpad-x1/ThinkPad-X1-Carbon-6th-Gen/p/22TP2TXX16G
