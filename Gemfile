@@ -31,3 +31,5 @@ gem "jekyll-remote-theme"
 gem "jekyll-paginate-v2"
 gem "enfield-jekyll-theme"
 gem "jekyll-sitemap"
+
+gem "webrick", "~> 1.8"

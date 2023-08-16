@@ -89,7 +89,7 @@ site-css:
 pagination:
   enabled: true
   per_page: 3
-  offset: 2
+  offset: 0
   permalink: '/blog/page/:num/'
   title: ':title - page :num of :max'
   limit: 0
